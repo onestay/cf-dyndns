@@ -1,0 +1,14 @@
+[general]
+cloudflare_api_key = ""
+
+["example.com"]
+zone = "example.com"
+ipv4 = true
+ipv6 = true
+
+["subdomain.example.com"]
+zone = "example.com"
+ipv4 = true
+ipv6 = false
+
+
