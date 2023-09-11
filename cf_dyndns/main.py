@@ -14,6 +14,15 @@ from typing import Any
 import requests
 import tomllib
 
+from .api import (
+    CloudflareClient,
+    CloudflareRecordNotFoundError,
+    CloudflareZoneNotFoundError,
+    CreateDNSRecord,
+    DNSRecord,
+    Zone,
+)
+
 logger = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser(
@@ -37,11 +46,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "-v",
-    "--verbose",
-    default=False,
-    action="store_true",
-    help="Verbose logging"
+    "-v", "--verbose", default=False, action="store_true", help="Verbose logging"
 )
 
 run = Event()
@@ -102,6 +107,7 @@ def get_ipv6() -> IPv6Address:
 
 
 def update_website(
+    cf: CloudflareClient,
     website: WebsiteConfig,
     ipv4: IPv4Address,
     ipv6: IPv6Address,
@@ -110,8 +116,11 @@ def update_website(
     logger.info(
         "updating %s (ipv4: %s, ipv6: %s)", website.name, website.ipv4, website.ipv6
     )
-    zones = zones.get()
-    zone_id = next(zone["id"] for zone in zones if zone["name"] == website.zone)
+    try:
+        zone_id = Zone.get_by_name(website.zone, cf).zone_id
+    except CloudflareZoneNotFoundError:
+        logger.warning("%s zone not found", website.zone)
+        return
 
     for ip_ver in [IPVer.v4, IPVer.v6]:
         if ip_ver == IPVer.v4 and not website.ipv4:
@@ -125,29 +134,24 @@ def update_website(
         ip = ipv4 if ip_ver == IPVer.v4 else ipv6
         record_type = "A" if ip_ver == IPVer.v4 else "AAAA"
 
-        record = next(
-            (
-                record
-                for record in cf.zones.dns_records.get(zone_id)
-                if record["name"] == website.name and record["type"] == record_type
-            ),
-            None,
-        )
-
-        if record is None:
+        try:
+            record = DNSRecord.get_record_by_name_and_type(
+                zone_id, website.name, record_type, cf
+            )
+        except CloudflareRecordNotFoundError:
             logger.warning("%s record not found for %s", record_type, website.name)
             continue
 
         logger.debug(
-            "%s record found for %s: %s", record_type, website.name, record["content"]
+            "%s record found for %s: %s", record_type, website.name, record.content
         )
 
-        if record["content"] == str(ip):
+        if record.content == str(ip):
             logger.debug(
                 "%s record for %s is up to date (%s)",
                 record_type,
                 website.name,
-                record["content"],
+                record.content,
             )
             continue
 
@@ -155,16 +159,18 @@ def update_website(
             "%s record for %s is out of date\n\tfound: %s\n\texpected:%s",
             record_type,
             website.name,
-            record["content"],
+            record.content,
             ip,
         )
-        record["content"] = str(ip)
+        updated_record = CreateDNSRecord(
+            content=str(ip), name=website.name, type=record_type
+        )
 
         if dry_run:
             logger.info("dry run set. Not updating")
             continue
 
-        cf.zones.dns_records.put(zone_id, data=record)
+        DNSRecord.update_record(zone_id, record.record_id, updated_record, cf)
 
 
 def main():
@@ -179,7 +185,7 @@ def main():
 
     general = config.pop("general")
     logger.debug("Creating Cloudflare connection")
-    cf = CloudFlare(key=general["cloudflare_api_key"])
+    cf = CloudflareClient(general["cloudflare_api_key"])
 
     websites = WebsiteConfig.from_config(config)
     while not run.is_set():
