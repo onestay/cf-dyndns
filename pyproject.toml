@@ -1,66 +1,42 @@
-[tool.poetry]
+[project]
 name = "cf-dyndns"
-version = "1.1.0"
+version = "1.1.1"
 description = ""
-authors = ["Marius Meschter <marius.meschter@univention.de>"]
+authors = [
+    {name = "Marius Meschter", email = "marius@meschter.me"}
+]
 readme = "README.md"
-packages = [{include = "cf_dyndns"}]
+requires-python = ">=3.11"
+dependencies = [
+    "httpx[brotli,http2]~=0.27.2",
+    "pydantic>=2.9",
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-requests = "^2.31.0"
-pydantic = "^2.3.0"
+[project.scripts]
+dnsupdate = "cf_dyndns:main"
 
-
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.0.280"
-black = "^23.7.0"
-pyright = "^1.1.318"
-
-[tool.poetry.scripts]
-cf_dyndns = 'cf_dyndns.main:main'
+[tool.uv]
+dev-dependencies = [
+    "ruff>=0.6.4"
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff.format]
+quote-style = "single"
+docstring-code-format = true
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = ["Q000", "Q003", "COM812", "ISC001", "ANN", "INP001", "D"]
+
+[tool.ruff.lint.isort]
+case-sensitive = true
+combine-as-imports = true
+lines-after-imports = 1
 
 [tool.ruff]
-select = [
-    "F",
-    "I",
-    "W",
-    "C",
-    "B",
-    "N",
-    "UP",
-    "ASYNC",
-    "S",
-    "BLE",
-    "B",
-    "A",
-    "C4",
-    "DTZ",
-    "EM",
-    "FA100",
-    "ICN",
-    "G",
-    "INP",
-    "PIE",
-    "PT",
-    "RET",
-    "SIM",
-    "PTH",
-    "PL",
-    "RUF",
-    "PERF",
-    "TRY",
-]
-ignore = [
-    "E501",
-    "RET502",
-    "F401", # caught by pyright
-    "PERF203",
-]
-
-[tool.pyright]
-strict = true
+line-length = 100
+required-version = ">=0.5.0"
