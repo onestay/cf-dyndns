@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-dnsupdate = "cf_dyndns:main"
+dnsupdate = "cf_dyndns:main.main"
 
 [tool.uv]
 dev-dependencies = [

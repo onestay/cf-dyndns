@@ -50,12 +50,13 @@ run = Event()
 
 
 def handler(signum: int, _: FrameType | None):
-    if signum == signal.SIGINT:
+    if signum in (signal.SIGINT, signal.SIGTERM):
         logger.info('Got SIGINT. Shutting down...')
         run.set()
 
 
 signal.signal(signal.SIGINT, handler)
+signal.signal(signal.SIGTERM, handler)
 
 
 class IPVer(StrEnum):
